@@ -74,6 +74,12 @@ class InstantMesh(nn.Module):
             samples_per_ray=rendering_samples_per_ray,
         )
 
+        self.camera_transform = nn.Sequential(
+            nn.Linear(16, 16),
+            nn.BatchNorm1d(16),
+            nn.ReLU(), 
+        )
+
     def init_flexicubes_geometry(self, device, fovy=50.0):
         camera = PerspectiveCamera(fovy=fovy, device=device)
         renderer = NeuralRender(device, camera_model=camera)
@@ -282,7 +288,8 @@ class InstantMesh(nn.Module):
         # Render the mesh into 2D image (get 3d position of each image plane)
         cam_mv = render_cameras
         run_n_view = cam_mv.shape[1]
-        antilias_mask, hard_mask, tex_pos, depth, normal = self.render_mesh(mesh_v, mesh_f, cam_mv, render_size=render_size)
+        proj_cam_mv = self.camera_transform(cam_mv)
+        antilias_mask, hard_mask, tex_pos, depth, normal = self.render_mesh(mesh_v, mesh_f, proj_cam_mv, render_size=render_size)
 
         tex_hard_mask = hard_mask
         tex_pos = [torch.cat([pos[i_view:i_view + 1] for i_view in range(run_n_view)], dim=2) for pos in tex_pos]
